@@ -24,14 +24,15 @@ export function exportMonthlyReport(payments, expenditures, yearMonth) {
   const paymentRows = payments.map(p => ({
     'Date': p.date,
     'Guest Name': p.guestName,
-    'Rooms Booked': p.rooms,
+    'Building': Array.isArray(p.buildings) ? p.buildings.join(', ') : '-',
+    'Room Numbers': Array.isArray(p.roomNumbers) ? p.roomNumbers.join(', ') : (p.rooms || '-'),
     'Amount (Rs)': p.amount
   }));
   if (paymentRows.length === 0) {
-    paymentRows.push({ 'Date': '', 'Guest Name': 'No payments this month', 'Rooms Booked': '', 'Amount (Rs)': '' });
+    paymentRows.push({ 'Date': '', 'Guest Name': 'No payments this month', 'Building': '', 'Room Numbers': '', 'Amount (Rs)': '' });
   }
   const wsPayments = XLSX.utils.json_to_sheet(paymentRows);
-  wsPayments['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 14 }, { wch: 14 }];
+  wsPayments['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 20 }, { wch: 16 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments');
 
   const expenseRows = expenditures.map(e => ({

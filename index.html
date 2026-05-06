@@ -33,8 +33,41 @@
           <input type="text" id="guest-name" required placeholder="Enter guest name">
         </div>
         <div class="form-group">
-          <label for="rooms">Number of Rooms Booked</label>
-          <input type="number" id="rooms" min="1" required placeholder="e.g. 2">
+          <label>Select Rooms</label>
+          <div class="room-selector">
+            <div class="room-group">
+              <div class="room-group-header">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="select-old-building">
+                  <span>Old Building (Rooms 1–7)</span>
+                </label>
+              </div>
+              <div class="room-checkboxes">
+                <label class="room-chip"><input type="checkbox" name="rooms" value="1"><span>1</span></label>
+                <label class="room-chip"><input type="checkbox" name="rooms" value="2"><span>2</span></label>
+                <label class="room-chip"><input type="checkbox" name="rooms" value="3"><span>3</span></label>
+                <label class="room-chip"><input type="checkbox" name="rooms" value="4"><span>4</span></label>
+                <label class="room-chip"><input type="checkbox" name="rooms" value="5"><span>5</span></label>
+                <label class="room-chip"><input type="checkbox" name="rooms" value="6"><span>6</span></label>
+                <label class="room-chip"><input type="checkbox" name="rooms" value="7"><span>7</span></label>
+              </div>
+            </div>
+            <div class="room-group">
+              <div class="room-group-header">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="select-new-building">
+                  <span>New Building (Rooms 8–11)</span>
+                </label>
+              </div>
+              <div class="room-checkboxes">
+                <label class="room-chip"><input type="checkbox" name="rooms" value="8"><span>8</span></label>
+                <label class="room-chip"><input type="checkbox" name="rooms" value="9"><span>9</span></label>
+                <label class="room-chip"><input type="checkbox" name="rooms" value="10"><span>10</span></label>
+                <label class="room-chip"><input type="checkbox" name="rooms" value="11"><span>11</span></label>
+              </div>
+            </div>
+            <p id="rooms-count" class="rooms-count">0 rooms selected</p>
+          </div>
         </div>
         <div class="form-group">
           <label for="payment-date">Date</label>

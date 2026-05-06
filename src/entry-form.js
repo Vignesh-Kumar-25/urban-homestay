@@ -9,10 +9,74 @@ const togglePayment = document.getElementById('toggle-payment');
 const toggleExpenditure = document.getElementById('toggle-expenditure');
 const toast = document.getElementById('toast');
 
+const roomCheckboxes = document.querySelectorAll('input[name="rooms"]');
+const selectOldBuilding = document.getElementById('select-old-building');
+const selectNewBuilding = document.getElementById('select-new-building');
+const roomsCountEl = document.getElementById('rooms-count');
+
+const OLD_BUILDING_ROOMS = [1, 2, 3, 4, 5, 6, 7];
+const NEW_BUILDING_ROOMS = [8, 9, 10, 11];
+
+function getSelectedRooms() {
+  const selected = [];
+  roomCheckboxes.forEach(cb => {
+    if (cb.checked) selected.push(parseInt(cb.value, 10));
+  });
+  return selected;
+}
+
+function updateRoomsCount() {
+  const count = getSelectedRooms().length;
+  roomsCountEl.textContent = count === 1 ? '1 room selected' : `${count} rooms selected`;
+}
+
+function updateBuildingToggle(buildingCheckbox, roomValues) {
+  const relevant = Array.from(roomCheckboxes).filter(cb => roomValues.includes(parseInt(cb.value, 10)));
+  const allChecked = relevant.every(cb => cb.checked);
+  const someChecked = relevant.some(cb => cb.checked);
+  buildingCheckbox.checked = allChecked;
+  buildingCheckbox.indeterminate = someChecked && !allChecked;
+}
+
+selectOldBuilding.addEventListener('change', () => {
+  roomCheckboxes.forEach(cb => {
+    if (OLD_BUILDING_ROOMS.includes(parseInt(cb.value, 10))) {
+      cb.checked = selectOldBuilding.checked;
+    }
+  });
+  updateRoomsCount();
+});
+
+selectNewBuilding.addEventListener('change', () => {
+  roomCheckboxes.forEach(cb => {
+    if (NEW_BUILDING_ROOMS.includes(parseInt(cb.value, 10))) {
+      cb.checked = selectNewBuilding.checked;
+    }
+  });
+  updateRoomsCount();
+});
+
+roomCheckboxes.forEach(cb => {
+  cb.addEventListener('change', () => {
+    updateBuildingToggle(selectOldBuilding, OLD_BUILDING_ROOMS);
+    updateBuildingToggle(selectNewBuilding, NEW_BUILDING_ROOMS);
+    updateRoomsCount();
+  });
+});
+
 function setDefaultDates() {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('payment-date').value = today;
   document.getElementById('expense-date').value = today;
+}
+
+function clearRoomSelection() {
+  roomCheckboxes.forEach(cb => { cb.checked = false; });
+  selectOldBuilding.checked = false;
+  selectOldBuilding.indeterminate = false;
+  selectNewBuilding.checked = false;
+  selectNewBuilding.indeterminate = false;
+  updateRoomsCount();
 }
 
 togglePayment.addEventListener('click', () => {
@@ -45,19 +109,25 @@ paymentForm.addEventListener('submit', async (e) => {
 
   try {
     const guestName = document.getElementById('guest-name').value.trim();
-    const rooms = parseInt(document.getElementById('rooms').value, 10);
+    const selectedRooms = getSelectedRooms();
     const date = document.getElementById('payment-date').value;
     const amount = parseFloat(document.getElementById('amount-paid').value);
 
-    if (!guestName || !rooms || !date || !amount) {
-      showToast('Please fill in all fields', 'error');
+    if (!guestName || selectedRooms.length === 0 || !date || !amount) {
+      showToast('Please fill in all fields and select at least one room', 'error');
       return;
     }
+
+    const buildings = [];
+    if (selectedRooms.some(r => OLD_BUILDING_ROOMS.includes(r))) buildings.push('Old Building');
+    if (selectedRooms.some(r => NEW_BUILDING_ROOMS.includes(r))) buildings.push('New Building');
 
     const newRef = push(ref(db, 'payments'));
     await set(newRef, {
       guestName: guestName,
-      rooms: rooms,
+      roomNumbers: selectedRooms,
+      buildings: buildings,
+      rooms: selectedRooms.length,
       date: date,
       amount: amount,
       timestamp: Date.now()
@@ -65,6 +135,7 @@ paymentForm.addEventListener('submit', async (e) => {
 
     showToast('Payment recorded successfully!');
     paymentForm.reset();
+    clearRoomSelection();
     setDefaultDates();
   } catch (error) {
     console.error('Error adding payment:', error);

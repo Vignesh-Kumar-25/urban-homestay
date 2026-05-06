@@ -9,6 +9,20 @@ function formatCurrency(amount) {
   return 'Rs ' + amount.toLocaleString('en-IN');
 }
 
+function formatRoomNumbers(p) {
+  if (p.roomNumbers && Array.isArray(p.roomNumbers)) {
+    return p.roomNumbers.join(', ');
+  }
+  return p.rooms || '-';
+}
+
+function formatBuildings(p) {
+  if (p.buildings && Array.isArray(p.buildings)) {
+    return p.buildings.join(', ');
+  }
+  return '-';
+}
+
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
@@ -129,18 +143,20 @@ async function loadDailyData() {
 
     const paymentsBody = document.getElementById('daily-payments-body');
     if (payments.length === 0) {
-      paymentsBody.innerHTML = '<tr class="empty-row"><td colspan="3">No payments for this date</td></tr>';
+      paymentsBody.innerHTML = '<tr class="empty-row"><td colspan="4">No payments for this date</td></tr>';
     } else {
       paymentsBody.innerHTML = '';
       payments.forEach(p => {
         const tr = document.createElement('tr');
         const tdName = document.createElement('td');
         tdName.textContent = p.guestName;
+        const tdBuilding = document.createElement('td');
+        tdBuilding.textContent = formatBuildings(p);
         const tdRooms = document.createElement('td');
-        tdRooms.textContent = p.rooms;
+        tdRooms.textContent = formatRoomNumbers(p);
         const tdAmount = document.createElement('td');
         tdAmount.textContent = formatCurrency(p.amount);
-        tr.append(tdName, tdRooms, tdAmount);
+        tr.append(tdName, tdBuilding, tdRooms, tdAmount);
         paymentsBody.appendChild(tr);
       });
     }
@@ -202,7 +218,7 @@ async function loadMonthlyData() {
 
     const paymentsBody = document.getElementById('monthly-payments-body');
     if (payments.length === 0) {
-      paymentsBody.innerHTML = '<tr class="empty-row"><td colspan="4">No payments this month</td></tr>';
+      paymentsBody.innerHTML = '<tr class="empty-row"><td colspan="5">No payments this month</td></tr>';
     } else {
       paymentsBody.innerHTML = '';
       payments.forEach(p => {
@@ -211,11 +227,13 @@ async function loadMonthlyData() {
         tdDate.textContent = p.date;
         const tdName = document.createElement('td');
         tdName.textContent = p.guestName;
+        const tdBuilding = document.createElement('td');
+        tdBuilding.textContent = formatBuildings(p);
         const tdRooms = document.createElement('td');
-        tdRooms.textContent = p.rooms;
+        tdRooms.textContent = formatRoomNumbers(p);
         const tdAmount = document.createElement('td');
         tdAmount.textContent = formatCurrency(p.amount);
-        tr.append(tdDate, tdName, tdRooms, tdAmount);
+        tr.append(tdDate, tdName, tdBuilding, tdRooms, tdAmount);
         paymentsBody.appendChild(tr);
       });
     }
@@ -323,7 +341,7 @@ async function loadAllEntries() {
     const tbody = document.getElementById('entries-body');
 
     if (entries.length === 0) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No entries found</td></tr>';
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No entries found</td></tr>';
     } else {
       tbody.innerHTML = '';
       entries.forEach(entry => {
@@ -338,8 +356,11 @@ async function loadAllEntries() {
         const tdDesc = document.createElement('td');
         tdDesc.textContent = entry.type === 'payment' ? entry.guestName : entry.description;
 
+        const tdBuilding = document.createElement('td');
+        tdBuilding.textContent = entry.type === 'payment' ? formatBuildings(entry) : '-';
+
         const tdRooms = document.createElement('td');
-        tdRooms.textContent = entry.type === 'payment' ? entry.rooms : '-';
+        tdRooms.textContent = entry.type === 'payment' ? formatRoomNumbers(entry) : '-';
 
         const tdAmount = document.createElement('td');
         tdAmount.textContent = formatCurrency(entry.amount);
@@ -347,7 +368,7 @@ async function loadAllEntries() {
         const tdDate = document.createElement('td');
         tdDate.textContent = entry.date;
 
-        tr.append(tdType, tdDesc, tdRooms, tdAmount, tdDate);
+        tr.append(tdType, tdDesc, tdBuilding, tdRooms, tdAmount, tdDate);
         tbody.appendChild(tr);
       });
     }
