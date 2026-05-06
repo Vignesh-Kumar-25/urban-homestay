@@ -738,6 +738,112 @@ tbody tr:hover {
 .mt-3 { margin-top: 24px; }
 .mb-2 { margin-bottom: 16px; }
 
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+}
+
+.modal-card {
+  background: var(--bg-white);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 500px;
+  margin: 20px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-card-sm {
+  max-width: 380px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 {
+  margin-bottom: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+}
+
+.modal-close:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+/* Action Buttons */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-white);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+
+.btn-icon:hover {
+  background: var(--bg);
+}
+
+.btn-icon-edit:hover {
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.btn-icon-delete:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 6px;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   header .container {

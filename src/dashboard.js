@@ -1,9 +1,13 @@
 import { db } from './firebase.js';
-import { ref, query, orderByChild, equalTo, startAt, endAt, get } from 'firebase/database';
+import { ref, query, orderByChild, equalTo, startAt, endAt, get, update, remove } from 'firebase/database';
 import { exportMonthlyReport } from './export.js';
 
 let currentMonthlyPayments = [];
 let currentMonthlyExpenses = [];
+let pendingDeletePath = null;
+
+const OLD_BUILDING_ROOMS = [1, 2, 3, 4, 5, 6, 7];
+const NEW_BUILDING_ROOMS = [8, 9, 10, 11];
 
 function formatCurrency(amount) {
   return 'Rs ' + amount.toLocaleString('en-IN');
@@ -37,6 +41,167 @@ function snapshotToArray(snapshot) {
   return arr;
 }
 
+function showToast(message, type = 'success') {
+  const toast = document.getElementById('dashboard-toast');
+  toast.textContent = message;
+  toast.className = `toast toast-${type} show`;
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// --- Action Buttons ---
+function createActionCell(entryType, entryId, entry) {
+  const td = document.createElement('td');
+  const wrap = document.createElement('div');
+  wrap.className = 'actions-cell';
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'btn-icon btn-icon-edit';
+  editBtn.title = 'Edit';
+  editBtn.innerHTML = '&#9998;';
+  editBtn.addEventListener('click', () => openEditModal(entryType, entryId, entry));
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'btn-icon btn-icon-delete';
+  deleteBtn.title = 'Delete';
+  deleteBtn.innerHTML = '&#128465;';
+  deleteBtn.addEventListener('click', () => openDeleteModal(entryType, entryId));
+
+  wrap.append(editBtn, deleteBtn);
+  td.appendChild(wrap);
+  return td;
+}
+
+// --- Edit Modal ---
+function openEditModal(entryType, entryId, entry) {
+  const modal = document.getElementById('edit-modal');
+  const titleEl = document.getElementById('edit-modal-title');
+  document.getElementById('edit-id').value = entryId;
+  document.getElementById('edit-type').value = entryType;
+
+  const paymentFields = document.getElementById('edit-payment-fields');
+  const expenseFields = document.getElementById('edit-expense-fields');
+
+  if (entryType === 'payment') {
+    titleEl.textContent = 'Edit Payment';
+    paymentFields.classList.remove('hidden');
+    expenseFields.classList.add('hidden');
+    document.getElementById('edit-guest-name').value = entry.guestName || '';
+    document.getElementById('edit-date').value = entry.date || '';
+    document.getElementById('edit-amount').value = entry.amount || '';
+
+    const editRoomCheckboxes = document.querySelectorAll('input[name="edit-rooms"]');
+    editRoomCheckboxes.forEach(cb => {
+      cb.checked = entry.roomNumbers && entry.roomNumbers.includes(parseInt(cb.value, 10));
+    });
+    updateEditBuildingToggles();
+  } else {
+    titleEl.textContent = 'Edit Expenditure';
+    paymentFields.classList.add('hidden');
+    expenseFields.classList.remove('hidden');
+    document.getElementById('edit-expense-date').value = entry.date || '';
+    document.getElementById('edit-description').value = entry.description || '';
+    document.getElementById('edit-expense-amount').value = entry.amount || '';
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+}
+
+function updateEditBuildingToggles() {
+  const editRoomCheckboxes = document.querySelectorAll('input[name="edit-rooms"]');
+  const oldCb = document.getElementById('edit-select-old-building');
+  const newCb = document.getElementById('edit-select-new-building');
+
+  const oldRooms = Array.from(editRoomCheckboxes).filter(cb => OLD_BUILDING_ROOMS.includes(parseInt(cb.value, 10)));
+  const newRooms = Array.from(editRoomCheckboxes).filter(cb => NEW_BUILDING_ROOMS.includes(parseInt(cb.value, 10)));
+
+  oldCb.checked = oldRooms.every(cb => cb.checked);
+  oldCb.indeterminate = oldRooms.some(cb => cb.checked) && !oldCb.checked;
+  newCb.checked = newRooms.every(cb => cb.checked);
+  newCb.indeterminate = newRooms.some(cb => cb.checked) && !newCb.checked;
+}
+
+async function saveEdit(e) {
+  e.preventDefault();
+  const entryId = document.getElementById('edit-id').value;
+  const entryType = document.getElementById('edit-type').value;
+
+  try {
+    if (entryType === 'payment') {
+      const selectedRooms = [];
+      document.querySelectorAll('input[name="edit-rooms"]').forEach(cb => {
+        if (cb.checked) selectedRooms.push(parseInt(cb.value, 10));
+      });
+      const buildings = [];
+      if (selectedRooms.some(r => OLD_BUILDING_ROOMS.includes(r))) buildings.push('Old Building');
+      if (selectedRooms.some(r => NEW_BUILDING_ROOMS.includes(r))) buildings.push('New Building');
+
+      await update(ref(db, `payments/${entryId}`), {
+        guestName: document.getElementById('edit-guest-name').value.trim(),
+        date: document.getElementById('edit-date').value,
+        amount: parseFloat(document.getElementById('edit-amount').value),
+        roomNumbers: selectedRooms,
+        buildings: buildings,
+        rooms: selectedRooms.length
+      });
+    } else {
+      await update(ref(db, `expenditures/${entryId}`), {
+        date: document.getElementById('edit-expense-date').value,
+        description: document.getElementById('edit-description').value.trim(),
+        amount: parseFloat(document.getElementById('edit-expense-amount').value)
+      });
+    }
+
+    closeEditModal();
+    showToast('Entry updated successfully!');
+    refreshCurrentView();
+  } catch (error) {
+    console.error('Error updating entry:', error);
+    showToast('Failed to update entry.', 'error');
+  }
+}
+
+// --- Delete Modal ---
+function openDeleteModal(entryType, entryId) {
+  const collection = entryType === 'payment' ? 'payments' : 'expenditures';
+  pendingDeletePath = `${collection}/${entryId}`;
+  document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+  document.getElementById('delete-modal').classList.add('hidden');
+  pendingDeletePath = null;
+}
+
+async function confirmDelete() {
+  if (!pendingDeletePath) return;
+  try {
+    await remove(ref(db, pendingDeletePath));
+    closeDeleteModal();
+    showToast('Entry deleted.');
+    refreshCurrentView();
+  } catch (error) {
+    console.error('Error deleting entry:', error);
+    showToast('Failed to delete entry.', 'error');
+  }
+}
+
+function refreshCurrentView() {
+  const activeTab = document.querySelector('.dashboard-tabs button.active');
+  if (!activeTab) return;
+  const tab = activeTab.dataset.tab;
+  if (tab === 'daily') loadDailyData();
+  else if (tab === 'monthly') loadMonthlyData();
+  else if (tab === 'entries') loadAllEntries();
+  else if (tab === 'guest-search') {
+    const input = document.getElementById('guest-search-input').value.trim();
+    if (input) searchGuest();
+  }
+}
+
 function setDefaults() {
   const today = new Date().toISOString().split('T')[0];
   const month = today.substring(0, 7);
@@ -64,10 +229,8 @@ function initTabs() {
 
 // --- Realtime Database Queries ---
 async function getPaymentsForDate(dateStr) {
-  console.log('Querying payments for date:', dateStr);
   const q = query(ref(db, 'payments'), orderByChild('date'), equalTo(dateStr));
   const snapshot = await get(q);
-  console.log('Payments found:', snapshot.exists(), snapshotToArray(snapshot).length);
   return snapshotToArray(snapshot);
 }
 
@@ -145,7 +308,7 @@ async function loadDailyData() {
 
     const paymentsBody = document.getElementById('daily-payments-body');
     if (payments.length === 0) {
-      paymentsBody.innerHTML = '<tr class="empty-row"><td colspan="4">No payments for this date</td></tr>';
+      paymentsBody.innerHTML = '<tr class="empty-row"><td colspan="5">No payments for this date</td></tr>';
     } else {
       paymentsBody.innerHTML = '';
       payments.forEach(p => {
@@ -158,14 +321,14 @@ async function loadDailyData() {
         tdRooms.textContent = formatRoomNumbers(p);
         const tdAmount = document.createElement('td');
         tdAmount.textContent = formatCurrency(p.amount);
-        tr.append(tdName, tdBuilding, tdRooms, tdAmount);
+        tr.append(tdName, tdBuilding, tdRooms, tdAmount, createActionCell('payment', p.id, p));
         paymentsBody.appendChild(tr);
       });
     }
 
     const expensesBody = document.getElementById('daily-expenses-body');
     if (expenses.length === 0) {
-      expensesBody.innerHTML = '<tr class="empty-row"><td colspan="2">No expenditures for this date</td></tr>';
+      expensesBody.innerHTML = '<tr class="empty-row"><td colspan="3">No expenditures for this date</td></tr>';
     } else {
       expensesBody.innerHTML = '';
       expenses.forEach(e => {
@@ -174,13 +337,13 @@ async function loadDailyData() {
         tdDesc.textContent = e.description;
         const tdAmount = document.createElement('td');
         tdAmount.textContent = formatCurrency(e.amount);
-        tr.append(tdDesc, tdAmount);
+        tr.append(tdDesc, tdAmount, createActionCell('expense', e.id, e));
         expensesBody.appendChild(tr);
       });
     }
   } catch (error) {
     console.error('Error loading daily data:', error);
-    alert('Error loading data: ' + error.message);
+    showToast('Error loading data: ' + error.message, 'error');
   } finally {
     loading.classList.add('hidden');
     dataDiv.classList.remove('hidden');
@@ -221,7 +384,7 @@ async function loadMonthlyData() {
 
     const paymentsBody = document.getElementById('monthly-payments-body');
     if (payments.length === 0) {
-      paymentsBody.innerHTML = '<tr class="empty-row"><td colspan="5">No payments this month</td></tr>';
+      paymentsBody.innerHTML = '<tr class="empty-row"><td colspan="6">No payments this month</td></tr>';
     } else {
       paymentsBody.innerHTML = '';
       payments.forEach(p => {
@@ -236,14 +399,14 @@ async function loadMonthlyData() {
         tdRooms.textContent = formatRoomNumbers(p);
         const tdAmount = document.createElement('td');
         tdAmount.textContent = formatCurrency(p.amount);
-        tr.append(tdDate, tdName, tdBuilding, tdRooms, tdAmount);
+        tr.append(tdDate, tdName, tdBuilding, tdRooms, tdAmount, createActionCell('payment', p.id, p));
         paymentsBody.appendChild(tr);
       });
     }
 
     const expensesBody = document.getElementById('monthly-expenses-body');
     if (expenses.length === 0) {
-      expensesBody.innerHTML = '<tr class="empty-row"><td colspan="3">No expenditures this month</td></tr>';
+      expensesBody.innerHTML = '<tr class="empty-row"><td colspan="4">No expenditures this month</td></tr>';
     } else {
       expensesBody.innerHTML = '';
       expenses.forEach(e => {
@@ -254,7 +417,7 @@ async function loadMonthlyData() {
         tdDesc.textContent = e.description;
         const tdAmount = document.createElement('td');
         tdAmount.textContent = formatCurrency(e.amount);
-        tr.append(tdDate, tdDesc, tdAmount);
+        tr.append(tdDate, tdDesc, tdAmount, createActionCell('expense', e.id, e));
         expensesBody.appendChild(tr);
       });
     }
@@ -344,7 +507,7 @@ async function loadAllEntries() {
     const tbody = document.getElementById('entries-body');
 
     if (entries.length === 0) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No entries found</td></tr>';
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No entries found</td></tr>';
     } else {
       tbody.innerHTML = '';
       entries.forEach(entry => {
@@ -371,12 +534,70 @@ async function loadAllEntries() {
         const tdDate = document.createElement('td');
         tdDate.textContent = entry.date;
 
-        tr.append(tdType, tdDesc, tdBuilding, tdRooms, tdAmount, tdDate);
+        const entryType = entry.type === 'payment' ? 'payment' : 'expense';
+        tr.append(tdType, tdDesc, tdBuilding, tdRooms, tdAmount, tdDate, createActionCell(entryType, entry.id, entry));
         tbody.appendChild(tr);
       });
     }
   } catch (error) {
     console.error('Error loading entries:', error);
+  } finally {
+    loading.classList.add('hidden');
+  }
+}
+
+// --- Guest Search ---
+async function searchGuest() {
+  const searchTerm = document.getElementById('guest-search-input').value.trim().toLowerCase();
+  if (!searchTerm) {
+    showToast('Please enter a guest name to search.', 'error');
+    return;
+  }
+
+  const loading = document.getElementById('guest-search-loading');
+  const resultsDiv = document.getElementById('guest-search-results');
+  loading.classList.remove('hidden');
+
+  try {
+    const snapshot = await get(ref(db, 'payments'));
+    const allPayments = snapshotToArray(snapshot);
+
+    const matches = allPayments.filter(p =>
+      p.guestName && p.guestName.toLowerCase().includes(searchTerm)
+    );
+
+    matches.sort((a, b) => b.date.localeCompare(a.date));
+
+    const summaryDiv = document.getElementById('guest-summary');
+    const tbody = document.getElementById('guest-search-body');
+
+    if (matches.length === 0) {
+      summaryDiv.classList.add('hidden');
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No records found for this guest</td></tr>';
+    } else {
+      const totalPaid = matches.reduce((sum, p) => sum + p.amount, 0);
+      document.getElementById('guest-total-visits').textContent = matches.length;
+      document.getElementById('guest-total-paid').textContent = formatCurrency(totalPaid);
+      summaryDiv.classList.remove('hidden');
+
+      tbody.innerHTML = '';
+      matches.forEach(p => {
+        const tr = document.createElement('tr');
+        const tdDate = document.createElement('td');
+        tdDate.textContent = p.date;
+        const tdBuilding = document.createElement('td');
+        tdBuilding.textContent = formatBuildings(p);
+        const tdRooms = document.createElement('td');
+        tdRooms.textContent = formatRoomNumbers(p);
+        const tdAmount = document.createElement('td');
+        tdAmount.textContent = formatCurrency(p.amount);
+        tr.append(tdDate, tdBuilding, tdRooms, tdAmount, createActionCell('payment', p.id, p));
+        tbody.appendChild(tr);
+      });
+    }
+  } catch (error) {
+    console.error('Error searching guest:', error);
+    showToast('Error searching: ' + error.message, 'error');
   } finally {
     loading.classList.add('hidden');
   }
@@ -390,6 +611,44 @@ function init() {
   document.getElementById('load-daily').addEventListener('click', loadDailyData);
   document.getElementById('generate-monthly').addEventListener('click', loadMonthlyData);
   document.getElementById('apply-filter').addEventListener('click', loadAllEntries);
+
+  document.getElementById('guest-search-btn').addEventListener('click', searchGuest);
+  document.getElementById('guest-search-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchGuest();
+  });
+
+  // Edit modal
+  document.getElementById('edit-form').addEventListener('submit', saveEdit);
+  document.getElementById('edit-modal-close').addEventListener('click', closeEditModal);
+  document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
+  document.getElementById('edit-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeEditModal();
+  });
+
+  // Edit modal room toggles
+  const editRoomCheckboxes = document.querySelectorAll('input[name="edit-rooms"]');
+  editRoomCheckboxes.forEach(cb => cb.addEventListener('change', updateEditBuildingToggles));
+
+  document.getElementById('edit-select-old-building').addEventListener('change', (e) => {
+    editRoomCheckboxes.forEach(cb => {
+      if (OLD_BUILDING_ROOMS.includes(parseInt(cb.value, 10))) cb.checked = e.target.checked;
+    });
+    updateEditBuildingToggles();
+  });
+
+  document.getElementById('edit-select-new-building').addEventListener('change', (e) => {
+    editRoomCheckboxes.forEach(cb => {
+      if (NEW_BUILDING_ROOMS.includes(parseInt(cb.value, 10))) cb.checked = e.target.checked;
+    });
+    updateEditBuildingToggles();
+  });
+
+  // Delete modal
+  document.getElementById('delete-confirm').addEventListener('click', confirmDelete);
+  document.getElementById('delete-cancel').addEventListener('click', closeDeleteModal);
+  document.getElementById('delete-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeDeleteModal();
+  });
 
   document.getElementById('export-excel').addEventListener('click', () => {
     const yearMonth = document.getElementById('monthly-month').value;
