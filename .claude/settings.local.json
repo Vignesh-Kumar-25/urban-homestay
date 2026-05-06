@@ -9,7 +9,11 @@
       "Bash(npx vite *)",
       "Bash(git rm *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Vignesh\\\\Desktop\\\\UrbanRetreat_homestay\" -Force)",
-      "Bash(Select-Object Name, PSIsContainer)"
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(dir /b /a-d)",
+      "Bash(dir /b /ad)",
+      "PowerShell(Get-Content *)",
+      "Bash(node generate-icons.js)"
     ]
   }
 }
