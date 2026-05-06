@@ -64,8 +64,10 @@ function initTabs() {
 
 // --- Realtime Database Queries ---
 async function getPaymentsForDate(dateStr) {
+  console.log('Querying payments for date:', dateStr);
   const q = query(ref(db, 'payments'), orderByChild('date'), equalTo(dateStr));
   const snapshot = await get(q);
+  console.log('Payments found:', snapshot.exists(), snapshotToArray(snapshot).length);
   return snapshotToArray(snapshot);
 }
 
@@ -178,6 +180,7 @@ async function loadDailyData() {
     }
   } catch (error) {
     console.error('Error loading daily data:', error);
+    alert('Error loading data: ' + error.message);
   } finally {
     loading.classList.add('hidden');
     dataDiv.classList.remove('hidden');

@@ -1,5 +1,11 @@
 import { db } from './firebase.js';
-import { ref, push, set } from 'firebase/database';
+import { ref, push, set, get } from 'firebase/database';
+
+get(ref(db, '.info/connected')).then(() => {
+  console.log('Firebase connected successfully');
+}).catch(err => {
+  console.error('Firebase connection failed:', err);
+});
 
 const paymentForm = document.getElementById('payment-form');
 const expenditureForm = document.getElementById('expenditure-form');
