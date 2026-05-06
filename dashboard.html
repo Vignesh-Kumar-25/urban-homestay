@@ -41,14 +41,14 @@
 
     <main class="container">
       <nav class="dashboard-tabs">
-        <button class="active" data-tab="daily">Daily View</button>
-        <button data-tab="monthly">Monthly Report</button>
+        <button data-tab="daily">Daily View</button>
+        <button class="active" data-tab="monthly">Monthly Report</button>
         <button data-tab="entries">All Entries</button>
         <button data-tab="guest-search">Guest Search</button>
       </nav>
 
       <!-- Daily View -->
-      <section id="tab-daily" class="tab-content active">
+      <section id="tab-daily" class="tab-content">
         <div class="picker-row">
           <div class="form-group">
             <label for="daily-date">Select Date</label>
@@ -115,7 +115,7 @@
       </section>
 
       <!-- Monthly Report -->
-      <section id="tab-monthly" class="tab-content">
+      <section id="tab-monthly" class="tab-content active">
         <div class="picker-row">
           <div class="form-group">
             <label for="monthly-month">Select Month</label>
@@ -276,6 +276,7 @@
             <table>
               <thead>
                 <tr>
+                  <th>Guest Name</th>
                   <th>Date</th>
                   <th>Building</th>
                   <th>Room No.</th>
@@ -284,7 +285,7 @@
                 </tr>
               </thead>
               <tbody id="guest-search-body">
-                <tr class="empty-row"><td colspan="5">Search for a guest to see their history</td></tr>
+                <tr class="empty-row"><td colspan="6">Search for a guest to see their history</td></tr>
               </tbody>
             </table>
           </div>

@@ -1,5 +1,5 @@
 import { db } from './firebase.js';
-import { ref, query, orderByChild, equalTo, startAt, endAt, get, update, remove } from 'firebase/database';
+import { ref, query, orderByChild, equalTo, startAt, endAt, get, update, remove, onValue } from 'firebase/database';
 import { exportMonthlyReport } from './export.js';
 
 let currentMonthlyPayments = [];
@@ -189,16 +189,16 @@ async function confirmDelete() {
   }
 }
 
-function refreshCurrentView() {
+async function refreshCurrentView() {
   const activeTab = document.querySelector('.dashboard-tabs button.active');
   if (!activeTab) return;
   const tab = activeTab.dataset.tab;
-  if (tab === 'daily') loadDailyData();
-  else if (tab === 'monthly') loadMonthlyData();
-  else if (tab === 'entries') loadAllEntries();
+  if (tab === 'daily') await loadDailyData();
+  else if (tab === 'monthly') await loadMonthlyData();
+  else if (tab === 'entries') await loadAllEntries();
   else if (tab === 'guest-search') {
     const input = document.getElementById('guest-search-input').value.trim();
-    if (input) searchGuest();
+    if (input) await searchGuest();
   }
 }
 
@@ -215,6 +215,8 @@ function setDefaults() {
 }
 
 // --- Tab Management ---
+const tabLoaded = { daily: false, monthly: false, entries: false };
+
 function initTabs() {
   const tabs = document.querySelectorAll('.dashboard-tabs button');
   tabs.forEach(tab => {
@@ -223,6 +225,11 @@ function initTabs() {
       tab.classList.add('active');
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+
+      const name = tab.dataset.tab;
+      if (name === 'daily' && !tabLoaded.daily) { loadDailyData(); tabLoaded.daily = true; }
+      if (name === 'monthly' && !tabLoaded.monthly) { loadMonthlyData(); tabLoaded.monthly = true; }
+      if (name === 'entries' && !tabLoaded.entries) { loadAllEntries(); tabLoaded.entries = true; }
     });
   });
 }
@@ -573,7 +580,7 @@ async function searchGuest() {
 
     if (matches.length === 0) {
       summaryDiv.classList.add('hidden');
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No records found for this guest</td></tr>';
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No records found for this guest</td></tr>';
     } else {
       const totalPaid = matches.reduce((sum, p) => sum + p.amount, 0);
       document.getElementById('guest-total-visits').textContent = matches.length;
@@ -583,6 +590,8 @@ async function searchGuest() {
       tbody.innerHTML = '';
       matches.forEach(p => {
         const tr = document.createElement('tr');
+        const tdName = document.createElement('td');
+        tdName.textContent = p.guestName;
         const tdDate = document.createElement('td');
         tdDate.textContent = p.date;
         const tdBuilding = document.createElement('td');
@@ -591,7 +600,7 @@ async function searchGuest() {
         tdRooms.textContent = formatRoomNumbers(p);
         const tdAmount = document.createElement('td');
         tdAmount.textContent = formatCurrency(p.amount);
-        tr.append(tdDate, tdBuilding, tdRooms, tdAmount, createActionCell('payment', p.id, p));
+        tr.append(tdName, tdDate, tdBuilding, tdRooms, tdAmount, createActionCell('payment', p.id, p));
         tbody.appendChild(tr);
       });
     }
@@ -601,6 +610,42 @@ async function searchGuest() {
   } finally {
     loading.classList.add('hidden');
   }
+}
+
+// --- Real-time Listeners ---
+let isRefreshing = false;
+function setupRealtimeListeners() {
+  let firstPayment = true;
+  let firstExpense = true;
+  onValue(ref(db, 'payments'), () => {
+    if (firstPayment) { firstPayment = false; return; }
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshCurrentView().finally(() => { isRefreshing = false; });
+    }
+  });
+  onValue(ref(db, 'expenditures'), () => {
+    if (firstExpense) { firstExpense = false; return; }
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshCurrentView().finally(() => { isRefreshing = false; });
+    }
+  });
+}
+
+// --- Live Guest Search (debounced) ---
+let searchTimeout = null;
+function onGuestSearchInput() {
+  clearTimeout(searchTimeout);
+  const val = document.getElementById('guest-search-input').value.trim();
+  if (val.length === 0) {
+    const summaryDiv = document.getElementById('guest-summary');
+    summaryDiv.classList.add('hidden');
+    document.getElementById('guest-search-body').innerHTML =
+      '<tr class="empty-row"><td colspan="6">Search for a guest to see their history</td></tr>';
+    return;
+  }
+  searchTimeout = setTimeout(searchGuest, 300);
 }
 
 // --- Event Listeners ---
@@ -613,8 +658,12 @@ function init() {
   document.getElementById('apply-filter').addEventListener('click', loadAllEntries);
 
   document.getElementById('guest-search-btn').addEventListener('click', searchGuest);
+  document.getElementById('guest-search-input').addEventListener('input', onGuestSearchInput);
   document.getElementById('guest-search-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') searchGuest();
+    if (e.key === 'Enter') {
+      clearTimeout(searchTimeout);
+      searchGuest();
+    }
   });
 
   // Edit modal
@@ -659,7 +708,13 @@ function init() {
     exportMonthlyReport(currentMonthlyPayments, currentMonthlyExpenses, yearMonth);
   });
 
+  loadMonthlyData();
+  loadAllEntries();
   loadDailyData();
+  tabLoaded.monthly = true;
+  tabLoaded.entries = true;
+  tabLoaded.daily = true;
+  setupRealtimeListeners();
 }
 
 if (sessionStorage.getItem('ur_authenticated') === 'true') {

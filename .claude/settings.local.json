@@ -7,7 +7,9 @@
       "Bash(npm init *)",
       "Bash(npm install *)",
       "Bash(npx vite *)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Vignesh\\\\Desktop\\\\UrbanRetreat_homestay\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)"
     ]
   }
 }
