@@ -13,7 +13,8 @@
       "Bash(dir /b /a-d)",
       "Bash(dir /b /ad)",
       "PowerShell(Get-Content *)",
-      "Bash(node generate-icons.js)"
+      "Bash(node generate-icons.js)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Vignesh\\\\Desktop\\\\UrbanRetreat_homestay\" -Recurse | Where-Object {$_.PSIsContainer -or $_.Extension -in \".js\",\".json\",\".html\",\".css\"} | Select-Object FullName)"
     ]
   }
 }

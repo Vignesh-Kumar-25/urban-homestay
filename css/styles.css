@@ -844,6 +844,180 @@ tbody tr:hover {
   gap: 6px;
 }
 
+/* Landing Page */
+.landing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  max-width: 700px;
+  margin: 40px auto;
+}
+
+.landing-card {
+  display: block;
+  background: var(--bg-white);
+  border-radius: var(--radius);
+  padding: 40px 32px;
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--text);
+  text-align: center;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.landing-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.landing-card h2 {
+  font-size: 1.25rem;
+  margin-bottom: 10px;
+  color: var(--primary);
+}
+
+.landing-card p {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+/* Form Row (side by side fields) */
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+/* Room Dashboard Grid */
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.room-card {
+  background: var(--bg-white);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.room-available {
+  border-left-color: var(--success);
+}
+
+.room-occupied {
+  border-left-color: var(--danger);
+}
+
+.room-card-number {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.room-card-status {
+  margin-bottom: 4px;
+}
+
+.room-card-guest {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.room-card-details {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.room-card-edit {
+  margin-top: 4px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  align-self: flex-start;
+}
+
+/* Date Grid (Month Calendar) */
+.date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.date-grid-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.date-cell {
+  background: var(--bg-white);
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, transform 0.1s;
+}
+
+.date-cell:hover {
+  border-color: var(--primary-light);
+  transform: translateY(-1px);
+}
+
+.date-cell.selected {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+}
+
+.date-cell-day {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.date-cell-occupancy {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.date-cell-occupancy.all-free {
+  color: var(--success);
+}
+
+.date-cell-occupancy.some-booked {
+  color: var(--accent-dark);
+}
+
+.date-cell-occupancy.all-booked {
+  color: var(--danger);
+}
+
+.date-cell-spacer {
+  visibility: hidden;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   header .container {
@@ -885,5 +1059,18 @@ tbody tr:hover {
 
   th, td {
     padding: 10px 12px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .landing-grid {
+    margin-top: 24px;
+  }
+
+  .room-grid {
+    grid-template-columns: 1fr;
   }
 }
