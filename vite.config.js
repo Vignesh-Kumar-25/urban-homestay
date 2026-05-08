@@ -7,8 +7,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        accounts: resolve(__dirname, 'accounts.html'),
         dashboard: resolve(__dirname, 'dashboard.html'),
-        landing: resolve(__dirname, 'landing.html'),
         bookings: resolve(__dirname, 'bookings.html')
       }
     }

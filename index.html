@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UrbanRetreat Homestay - Entry Form</title>
+  <title>UrbanRetreat Homestay</title>
   <meta name="theme-color" content="#0f766e">
   <link rel="apple-touch-icon" href="/icons/icon-192.svg">
   <link rel="stylesheet" href="css/styles.css">
@@ -13,103 +13,26 @@
     <div class="container">
       <div>
         <h1>UrbanRetreat Homestay</h1>
-        <p class="subtitle">Accounts Entry</p>
+        <p class="subtitle">Management Portal</p>
       </div>
-      <nav>
-        <a href="landing.html">Home</a>
-        <a href="dashboard.html">Owner Dashboard</a>
-      </nav>
     </div>
   </header>
 
   <main class="container">
-    <div class="form-toggle">
-      <button id="toggle-payment" class="active">Guest Payment</button>
-      <button id="toggle-expenditure">Expenditure</button>
-    </div>
-
-    <div id="payment-section" class="form-section">
-      <h2>Record Guest Payment</h2>
-      <form id="payment-form">
-        <div class="form-group">
-          <label for="guest-name">Guest Name</label>
-          <input type="text" id="guest-name" required placeholder="Enter guest name">
-        </div>
-        <div class="form-group">
-          <label>Select Rooms</label>
-          <div class="room-selector">
-            <div class="room-group">
-              <div class="room-group-header">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="select-old-building">
-                  <span>Old Building (Rooms 1–7)</span>
-                </label>
-              </div>
-              <div class="room-checkboxes">
-                <label class="room-chip"><input type="checkbox" name="rooms" value="1"><span>1</span></label>
-                <label class="room-chip"><input type="checkbox" name="rooms" value="2"><span>2</span></label>
-                <label class="room-chip"><input type="checkbox" name="rooms" value="3"><span>3</span></label>
-                <label class="room-chip"><input type="checkbox" name="rooms" value="4"><span>4</span></label>
-                <label class="room-chip"><input type="checkbox" name="rooms" value="5"><span>5</span></label>
-                <label class="room-chip"><input type="checkbox" name="rooms" value="6"><span>6</span></label>
-                <label class="room-chip"><input type="checkbox" name="rooms" value="7"><span>7</span></label>
-              </div>
-            </div>
-            <div class="room-group">
-              <div class="room-group-header">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="select-new-building">
-                  <span>New Building (Rooms 8–11)</span>
-                </label>
-              </div>
-              <div class="room-checkboxes">
-                <label class="room-chip"><input type="checkbox" name="rooms" value="8"><span>8</span></label>
-                <label class="room-chip"><input type="checkbox" name="rooms" value="9"><span>9</span></label>
-                <label class="room-chip"><input type="checkbox" name="rooms" value="10"><span>10</span></label>
-                <label class="room-chip"><input type="checkbox" name="rooms" value="11"><span>11</span></label>
-              </div>
-            </div>
-            <p id="rooms-count" class="rooms-count">0 rooms selected</p>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="payment-date">Date</label>
-          <input type="date" id="payment-date" required>
-        </div>
-        <div class="form-group">
-          <label for="amount-paid">Amount Paid (Rs)</label>
-          <input type="number" id="amount-paid" min="0" step="0.01" required placeholder="e.g. 4500">
-        </div>
-        <button type="submit" class="btn btn-primary btn-full">Record Payment</button>
-      </form>
-    </div>
-
-    <div id="expenditure-section" class="form-section hidden">
-      <h2>Record Expenditure</h2>
-      <form id="expenditure-form">
-        <div class="form-group">
-          <label for="expense-desc">Description</label>
-          <input type="text" id="expense-desc" required placeholder="e.g. Electricity bill">
-        </div>
-        <div class="form-group">
-          <label for="expense-amount">Amount (Rs)</label>
-          <input type="number" id="expense-amount" min="0" step="0.01" required placeholder="e.g. 1200">
-        </div>
-        <div class="form-group">
-          <label for="expense-date">Date</label>
-          <input type="date" id="expense-date" required>
-        </div>
-        <button type="submit" class="btn btn-primary btn-full">Record Expenditure</button>
-      </form>
+    <div class="landing-grid">
+      <a href="bookings.html" class="landing-card">
+        <h2>Homestay Bookings</h2>
+        <p>Manage room bookings, view room availability, and track guest check-in/check-out</p>
+      </a>
+      <a href="accounts.html" class="landing-card">
+        <h2>Homestay Accounts</h2>
+        <p>Record guest payments, track expenditures, and view financial reports</p>
+      </a>
     </div>
   </main>
-
-  <div id="toast" class="toast"></div>
 
   <footer>
     <p>UrbanRetreat Homestay &copy; 2026</p>
   </footer>
-
-  <script type="module" src="src/entry-form.js"></script>
 </body>
 </html>
