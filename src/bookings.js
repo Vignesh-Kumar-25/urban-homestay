@@ -101,6 +101,7 @@ function clearRoomSelection() {
 const bookingForm = document.getElementById('booking-form');
 
 let cachedBookings = [];
+let cachedPayments = [];
 let selectedDate = null;
 
 function setDefaultDates() {
@@ -130,6 +131,7 @@ bookingForm.addEventListener('submit', async (e) => {
     const selectedRooms = getSelectedRooms();
     const checkIn = document.getElementById('booking-checkin').value;
     const checkOut = document.getElementById('booking-checkout').value;
+    const advancePaid = parseFloat(document.getElementById('booking-advance').value) || 0;
 
     if (!guestName || selectedRooms.length === 0 || !checkIn || !checkOut) {
       showToast('Please fill in all fields and select at least one room', 'error');
@@ -146,6 +148,8 @@ bookingForm.addEventListener('submit', async (e) => {
     if (selectedRooms.some(r => NEW_BUILDING_ROOMS.includes(r))) buildings.push('New Building');
 
     const newRef = push(ref(db, 'bookings'));
+    const bookingId = newRef.key;
+
     await set(newRef, {
       guestName,
       adults,
@@ -154,8 +158,23 @@ bookingForm.addEventListener('submit', async (e) => {
       buildings,
       checkIn,
       checkOut,
+      advancePaid,
       timestamp: Date.now()
     });
+
+    if (advancePaid > 0) {
+      const paymentRef = push(ref(db, 'payments'));
+      await set(paymentRef, {
+        guestName,
+        bookingId,
+        roomNumbers: selectedRooms,
+        buildings,
+        rooms: selectedRooms.length,
+        date: checkIn,
+        amount: advancePaid,
+        timestamp: Date.now()
+      });
+    }
 
     showToast('Booking recorded successfully!');
     bookingForm.reset();
@@ -163,6 +182,7 @@ bookingForm.addEventListener('submit', async (e) => {
     setDefaultDates();
     document.getElementById('booking-adults').value = '1';
     document.getElementById('booking-kids').value = '0';
+    document.getElementById('booking-advance').value = '0';
   } catch (error) {
     console.error('Error adding booking:', error);
     showToast('Failed to save booking. Check console for details.', 'error');
@@ -183,8 +203,12 @@ async function loadRoomDashboard() {
   content.classList.add('hidden');
 
   try {
-    const snapshot = await get(ref(db, 'bookings'));
-    cachedBookings = snapshotToArray(snapshot);
+    const [bookingsSnap, paymentsSnap] = await Promise.all([
+      get(ref(db, 'bookings')),
+      get(ref(db, 'payments'))
+    ]);
+    cachedBookings = snapshotToArray(bookingsSnap);
+    cachedPayments = snapshotToArray(paymentsSnap);
 
     renderDateGrid(yearMonth);
     selectedDate = null;
@@ -281,6 +305,12 @@ function selectDate(dateStr) {
   document.getElementById('room-detail-section').classList.remove('hidden');
 }
 
+function getTotalPaidForBooking(bookingId) {
+  return cachedPayments
+    .filter(p => p.bookingId === bookingId)
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
 function renderGuestList(activeBookings) {
   const section = document.getElementById('guest-list-section');
   const tbody = document.getElementById('guest-list-body');
@@ -300,16 +330,32 @@ function renderGuestList(activeBookings) {
   tbody.innerHTML = '';
   uniqueBookings.forEach(b => {
     const tr = document.createElement('tr');
+
     const tdName = document.createElement('td');
     tdName.textContent = b.guestName;
-    const tdAdults = document.createElement('td');
-    tdAdults.textContent = b.adults || 0;
-    const tdKids = document.createElement('td');
-    tdKids.textContent = b.kids || 0;
+
+    const tdGuests = document.createElement('td');
+    tdGuests.textContent = `${b.adults || 0} + ${b.kids || 0}`;
+
     const tdRooms = document.createElement('td');
     tdRooms.textContent = b.roomNumbers ? b.roomNumbers.join(', ') : '-';
+
     const tdCheckout = document.createElement('td');
     tdCheckout.textContent = b.checkOut;
+
+    const tdTotalPaid = document.createElement('td');
+    const totalPaid = getTotalPaidForBooking(b.id);
+    tdTotalPaid.textContent = 'Rs ' + totalPaid.toLocaleString('en-IN');
+
+    const tdPayment = document.createElement('td');
+    const payBtn = document.createElement('button');
+    payBtn.className = 'btn btn-primary';
+    payBtn.style.fontSize = '0.75rem';
+    payBtn.style.padding = '4px 10px';
+    payBtn.style.whiteSpace = 'nowrap';
+    payBtn.textContent = 'Record Payment';
+    payBtn.addEventListener('click', () => openRecordPaymentModal(b));
+    tdPayment.appendChild(payBtn);
 
     const tdActions = document.createElement('td');
     const wrap = document.createElement('div');
@@ -330,7 +376,7 @@ function renderGuestList(activeBookings) {
     wrap.append(editBtn, deleteBtn);
     tdActions.appendChild(wrap);
 
-    tr.append(tdName, tdAdults, tdKids, tdRooms, tdCheckout, tdActions);
+    tr.append(tdName, tdGuests, tdRooms, tdCheckout, tdTotalPaid, tdPayment, tdActions);
     tbody.appendChild(tr);
   });
 
@@ -377,6 +423,75 @@ function renderRoomGrid(containerId, roomNumbers, activeBookings) {
     container.appendChild(card);
   });
 }
+
+// --- Record Payment Modal ---
+let currentPaymentBooking = null;
+
+function openRecordPaymentModal(booking) {
+  currentPaymentBooking = booking;
+  document.getElementById('record-payment-booking-id').value = booking.id;
+  document.getElementById('record-payment-guest').textContent = `Guest: ${booking.guestName} | Rooms: ${booking.roomNumbers ? booking.roomNumbers.join(', ') : '-'}`;
+  document.getElementById('record-payment-amount').value = '';
+  document.getElementById('record-payment-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('record-payment-modal').classList.remove('hidden');
+}
+
+function closeRecordPaymentModal() {
+  document.getElementById('record-payment-modal').classList.add('hidden');
+  currentPaymentBooking = null;
+}
+
+document.getElementById('record-payment-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentPaymentBooking) return;
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving...';
+
+  try {
+    const amount = parseFloat(document.getElementById('record-payment-amount').value);
+    const date = document.getElementById('record-payment-date').value;
+
+    if (!amount || !date) {
+      showToast('Please fill in all fields', 'error');
+      return;
+    }
+
+    const b = currentPaymentBooking;
+    const buildings = [];
+    if (b.roomNumbers && b.roomNumbers.some(r => OLD_BUILDING_ROOMS.includes(r))) buildings.push('Old Building');
+    if (b.roomNumbers && b.roomNumbers.some(r => NEW_BUILDING_ROOMS.includes(r))) buildings.push('New Building');
+
+    const paymentRef = push(ref(db, 'payments'));
+    await set(paymentRef, {
+      guestName: b.guestName,
+      bookingId: b.id,
+      roomNumbers: b.roomNumbers || [],
+      buildings,
+      rooms: b.roomNumbers ? b.roomNumbers.length : 0,
+      date,
+      amount,
+      timestamp: Date.now()
+    });
+
+    closeRecordPaymentModal();
+    showToast('Payment recorded successfully!');
+    await refreshDashboard();
+  } catch (error) {
+    console.error('Error recording payment:', error);
+    showToast('Failed to record payment.', 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Save Payment';
+  }
+});
+
+document.getElementById('record-payment-close').addEventListener('click', closeRecordPaymentModal);
+document.getElementById('record-payment-cancel').addEventListener('click', closeRecordPaymentModal);
+document.getElementById('record-payment-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeRecordPaymentModal();
+});
 
 // --- Edit Booking Modal ---
 function openEditBookingModal(booking) {
@@ -471,10 +586,14 @@ document.getElementById('delete-booking-btn').addEventListener('click', () => {
 document.getElementById('delete-booking-confirm').addEventListener('click', async () => {
   if (!pendingDeleteBookingId) return;
   try {
-    await remove(ref(db, `bookings/${pendingDeleteBookingId}`));
+    const linkedPayments = cachedPayments.filter(p => p.bookingId === pendingDeleteBookingId);
+    const deletes = linkedPayments.map(p => remove(ref(db, `payments/${p.id}`)));
+    deletes.push(remove(ref(db, `bookings/${pendingDeleteBookingId}`)));
+    await Promise.all(deletes);
+
     document.getElementById('delete-booking-modal').classList.add('hidden');
     closeEditBookingModal();
-    showToast('Booking deleted.');
+    showToast('Booking and associated payments deleted.');
     await refreshDashboard();
   } catch (error) {
     console.error('Error deleting booking:', error);
@@ -524,8 +643,12 @@ async function refreshDashboard() {
   const yearMonth = document.getElementById('dashboard-month').value;
   if (!yearMonth) return;
 
-  const snapshot = await get(ref(db, 'bookings'));
-  cachedBookings = snapshotToArray(snapshot);
+  const [bookingsSnap, paymentsSnap] = await Promise.all([
+    get(ref(db, 'bookings')),
+    get(ref(db, 'payments'))
+  ]);
+  cachedBookings = snapshotToArray(bookingsSnap);
+  cachedPayments = snapshotToArray(paymentsSnap);
   renderDateGrid(yearMonth);
 
   if (selectedDate) {
@@ -535,8 +658,16 @@ async function refreshDashboard() {
 
 // --- Realtime listener ---
 let firstBookingEvent = true;
+let firstPaymentEvent = true;
 onValue(ref(db, 'bookings'), () => {
   if (firstBookingEvent) { firstBookingEvent = false; return; }
+  const activeTab = document.querySelector('.dashboard-tabs button.active');
+  if (activeTab && activeTab.dataset.tab === 'room-dashboard') {
+    refreshDashboard();
+  }
+});
+onValue(ref(db, 'payments'), () => {
+  if (firstPaymentEvent) { firstPaymentEvent = false; return; }
   const activeTab = document.querySelector('.dashboard-tabs button.active');
   if (activeTab && activeTab.dataset.tab === 'room-dashboard') {
     refreshDashboard();

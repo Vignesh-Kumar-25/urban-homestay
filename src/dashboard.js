@@ -566,11 +566,19 @@ async function searchGuest() {
   loading.classList.remove('hidden');
 
   try {
-    const snapshot = await get(ref(db, 'payments'));
-    const allPayments = snapshotToArray(snapshot);
+    const [paymentsSnap, bookingsSnap] = await Promise.all([
+      get(ref(db, 'payments')),
+      get(ref(db, 'bookings'))
+    ]);
+    const allPayments = snapshotToArray(paymentsSnap);
+    const allBookings = snapshotToArray(bookingsSnap);
 
     const matches = allPayments.filter(p =>
       p.guestName && p.guestName.toLowerCase().includes(searchTerm)
+    );
+
+    const bookingMatches = allBookings.filter(b =>
+      b.guestName && b.guestName.toLowerCase().includes(searchTerm)
     );
 
     matches.sort((a, b) => b.date.localeCompare(a.date));
@@ -578,31 +586,35 @@ async function searchGuest() {
     const summaryDiv = document.getElementById('guest-summary');
     const tbody = document.getElementById('guest-search-body');
 
-    if (matches.length === 0) {
+    if (matches.length === 0 && bookingMatches.length === 0) {
       summaryDiv.classList.add('hidden');
       tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No records found for this guest</td></tr>';
     } else {
       const totalPaid = matches.reduce((sum, p) => sum + p.amount, 0);
-      document.getElementById('guest-total-visits').textContent = matches.length;
+      document.getElementById('guest-total-visits').textContent = bookingMatches.length;
       document.getElementById('guest-total-paid').textContent = formatCurrency(totalPaid);
       summaryDiv.classList.remove('hidden');
 
-      tbody.innerHTML = '';
-      matches.forEach(p => {
-        const tr = document.createElement('tr');
-        const tdName = document.createElement('td');
-        tdName.textContent = p.guestName;
-        const tdDate = document.createElement('td');
-        tdDate.textContent = p.date;
-        const tdBuilding = document.createElement('td');
-        tdBuilding.textContent = formatBuildings(p);
-        const tdRooms = document.createElement('td');
-        tdRooms.textContent = formatRoomNumbers(p);
-        const tdAmount = document.createElement('td');
-        tdAmount.textContent = formatCurrency(p.amount);
-        tr.append(tdName, tdDate, tdBuilding, tdRooms, tdAmount, createActionCell('payment', p.id, p));
-        tbody.appendChild(tr);
-      });
+      if (matches.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No payment records for this guest</td></tr>';
+      } else {
+        tbody.innerHTML = '';
+        matches.forEach(p => {
+          const tr = document.createElement('tr');
+          const tdName = document.createElement('td');
+          tdName.textContent = p.guestName;
+          const tdDate = document.createElement('td');
+          tdDate.textContent = p.date;
+          const tdBuilding = document.createElement('td');
+          tdBuilding.textContent = formatBuildings(p);
+          const tdRooms = document.createElement('td');
+          tdRooms.textContent = formatRoomNumbers(p);
+          const tdAmount = document.createElement('td');
+          tdAmount.textContent = formatCurrency(p.amount);
+          tr.append(tdName, tdDate, tdBuilding, tdRooms, tdAmount, createActionCell('payment', p.id, p));
+          tbody.appendChild(tr);
+        });
+      }
     }
   } catch (error) {
     console.error('Error searching guest:', error);
